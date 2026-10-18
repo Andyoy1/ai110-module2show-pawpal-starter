@@ -42,16 +42,27 @@ pip install -r requirements.txt
 6. Connect your logic to the Streamlit UI in `app.py`.
 7. Refine UML so it matches what you actually built.
 
+## Implementation Summary (Phase 2)
+
+The backend lives in `pawpal_system.py` with four classes:
+
+- `Task` (dataclass): one care task; `mark_complete()` sets `completed` to `True`.
+- `Pet` (dataclass): a pet and its tasks; `add_task()` rejects a task whose `pet_name` doesn't match the pet.
+- `Owner` (dataclass): an owner and their pets; `add_pet()` rejects blank or duplicate names (case-insensitive, whitespace trimmed); `get_all_tasks()` returns a new list of every pet's tasks.
+- `Scheduler`: stores the `Owner`. Sorting, filtering, conflict detection, and recurring-task handling are still stubs for the algorithm phase.
+
+`main.py` is a command-line demo and `tests/test_pawpal.py` holds the pytest tests. `app.py` has not been connected yet.
+
 ## 🖥️ Sample Output
 
-Paste a sample of your app's CLI or Streamlit output here so a reader can see what a generated plan looks like:
+From `python main.py` (tasks are listed in the order they were added; sorting comes in a later phase):
 
 ```
-# e.g.:
-# Daily plan for Biscuit (Golden Retriever):
-#   08:00 — Morning walk (30 min) [priority: high]
-#   09:00 — Feeding (10 min) [priority: high]
-#   ...
+Today's Schedule for Jordan (2026-10-18)
+------------------------------------------------------------
+07:30 | Mochi  | Morning walk    | high   | pending
+18:00 | Mochi  | Brush fur       | low    | pending
+08:00 | Luna   | Feed breakfast  | high   | pending
 ```
 
 ## 🧪 Testing PawPal+
@@ -67,7 +78,11 @@ pytest --cov
 Sample test output:
 
 ```
-# Paste your pytest output here
+collected 7 items
+
+tests\test_pawpal.py .......                                             [100%]
+
+============================== 7 passed in 0.18s ==============================
 ```
 
 ## 📐 Smarter Scheduling
