@@ -49,6 +49,11 @@ streamlit run app.py      # Streamlit UI
 python -m pytest          # all tests (backend + Streamlit AppTest UI tests)
 ```
 
+## Design (UML)
+
+- [diagrams/uml_draft.mmd](diagrams/uml_draft.mmd): the original design.
+- [diagrams/uml_final.mmd](diagrams/uml_final.mmd): the final design matching `pawpal_system.py` (also copied to [diagrams/uml.mmd](diagrams/uml.mmd), the file the starter expects).
+
 ## Implementation Summary (Phase 2)
 
 The backend lives in `pawpal_system.py` with four classes:
@@ -111,7 +116,7 @@ Coverage (behaviors tested; no line-coverage percentage, since `pytest-cov` is n
 
 ### Reliability: 4/5 stars (provisional)
 
-My confidence is fairly high because the scheduling logic and the main UI workflow are covered by 27 passing tests. The rating is provisional: it is my own judgement, not a measured result. Not checked: manual browser use of `streamlit run app.py`, line-coverage numbers, and many-task or many-user scale.
+My confidence is fairly high because the scheduling logic and the main UI workflow are covered by 27 passing tests, and a manual check of the app in the browser (`streamlit run app.py`) worked. The rating is provisional: it is my own judgement, not a measured result. Not checked: line-coverage numbers, and many-task or many-user scale.
 
 ### Limitations
 
