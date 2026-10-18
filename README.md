@@ -22,6 +22,15 @@ Your final app should:
 - Display the plan clearly (and ideally explain the reasoning)
 - Include tests for the most important scheduling behaviors
 
+## Features
+
+- Add pets (unique names, case-insensitive) and care tasks with date, time, duration, priority, and frequency (once/daily/weekly).
+- Schedule view for a chosen date (defaults to today; future dates allowed), filterable by pet and status.
+- Tasks are sorted by date and time, with higher priority first when times match.
+- Conflict warnings for incomplete tasks that start at exactly the same time, across all pets, regardless of the display filters. Tasks are never moved.
+- One-click completion; daily and weekly tasks automatically create the next occurrence.
+- Input validation for blank descriptions and missing times.
+
 ## Getting started
 
 ### Setup
@@ -32,15 +41,13 @@ source .venv/bin/activate  # Windows: .venv\Scripts\activate
 pip install -r requirements.txt
 ```
 
-### Suggested workflow
+### Commands
 
-1. Read the scenario carefully and identify requirements and edge cases.
-2. Draft a UML diagram (classes, attributes, methods, relationships).
-3. Convert UML into Python class stubs (no logic yet).
-4. Implement scheduling logic in small increments.
-5. Add tests to verify key behaviors.
-6. Connect your logic to the Streamlit UI in `app.py`.
-7. Refine UML so it matches what you actually built.
+```bash
+python main.py            # CLI demo
+streamlit run app.py      # Streamlit UI
+python -m pytest          # all tests (backend + Streamlit AppTest UI tests)
+```
 
 ## Implementation Summary (Phase 2)
 
@@ -51,7 +58,7 @@ The backend lives in `pawpal_system.py` with four classes:
 - `Owner` (dataclass): an owner and their pets; `add_pet()` rejects blank or duplicate names (case-insensitive, whitespace trimmed); `get_all_tasks()` returns a new list of every pet's tasks.
 - `Scheduler`: stores the `Owner`; sorting, filtering, conflict detection, and recurring-task completion (see Smarter Scheduling).
 
-`main.py` is a command-line demo and `tests/test_pawpal.py` holds the pytest tests. `app.py` has not been connected yet.
+`main.py` is a command-line demo and `tests/test_pawpal.py` holds the pytest tests. `app.py` is the Streamlit UI and `tests/test_app.py` holds its AppTest tests.
 
 ## 🖥️ Sample Output
 
@@ -83,30 +90,34 @@ Next occurrence: Feed breakfast on 2026-10-19 at 08:00
 ## 🧪 Testing PawPal+
 
 ```bash
-# Run the full test suite:
 python -m pytest
-
-# Run with coverage (requires pytest-cov, not in the current venv):
-pytest --cov
 ```
 
-Sample test output:
+Actual output:
 
 ```
-collected 18 items
+collected 27 items
 
-tests/test_pawpal.py ..................                                  [100%]
+tests	est_app.py ......                                                 [ 22%]
+tests	est_pawpal.py .....................                               [100%]
 
-============================= 18 passed in 0.33s ==============================
+============================= 27 passed in 11.86s =============================
 ```
 
-Coverage description (behaviors tested; a line-coverage percentage was not measured because `pytest-cov` is not installed):
+Coverage (behaviors tested; no line-coverage percentage, since `pytest-cov` is not installed):
 
-- Core models: task completion, adding tasks, `get_all_tasks`, duplicate/blank pet names, wrong-pet tasks.
-- Sorting: date/time/priority ordering, no mutation of input, explicitly empty list.
-- Filtering: combined pet + `completed=False` + date filters.
-- Recurrence: daily and weekly (including month/year rollover), no duplicate on repeated completion, no new task for one-time tasks, rejection of an equal-looking but unowned task.
-- Conflicts: across pets and within one pet; completed tasks, different dates, and duration-only overlaps are ignored.
+- **Backend (`tests/test_pawpal.py`, 21 tests):** task completion, adding tasks, `get_all_tasks`, duplicate/blank pet names, wrong-pet tasks; sorting (date/time/priority, no mutation, explicit empty list); combined filters with `completed=False`; daily/weekly recurrence including month/year rollover; no duplicate on repeated completion; once-tasks create nothing; unowned look-alike task rejected; conflicts across and within pets, ignoring completed tasks, other dates, and duration-only overlaps; empty owner, pet with no tasks, and completing a task with no pets.
+- **UI (`tests/test_app.py`, 6 Streamlit AppTest tests):** two pets and tasks survive interactions; chronological display; pet/status/date filters; cross-pet same-time warning (still shown when filtered); completing a daily task keeps the completed original, creates exactly one incomplete next-day task, keeps the success message after rerun, and shows it on the next day; blank-description and missing-time validation.
+
+### Reliability: 4/5 stars (provisional)
+
+My confidence is fairly high because the scheduling logic and the main UI workflow are covered by 27 passing tests. The rating is provisional: it is my own judgement, not a measured result. Not checked: manual browser use of `streamlit run app.py`, line-coverage numbers, and many-task or many-user scale.
+
+### Limitations
+
+- **Session-only storage:** data lives in Streamlit session state and is lost on refresh or restart.
+- **Exact-start-time conflicts:** only identical start times warn; overlapping durations (08:00 for 30 min vs. 08:10) do not.
+- **Recurrence from the original due date:** the next occurrence is the original due date plus 1 or 7 days, not the completion date, so completing a task late can create an occurrence already in the past.
 
 ## 📐 Smarter Scheduling
 
@@ -121,12 +132,12 @@ All four methods live on `Scheduler` in `pawpal_system.py`.
 
 ## 📸 Demo Walkthrough
 
-Describe your app in numbered steps so a reader can follow along without watching a video:
+A concrete workflow in the Streamlit app (`streamlit run app.py`):
 
-1. <!-- Describe this step -->
-2. <!-- Describe this step -->
-3. <!-- Describe this step -->
-4. <!-- Describe this step -->
-5. <!-- Add more steps as needed -->
+1. Add two pets: **Mochi** (dog) and **Luna** (cat).
+2. Add tasks for today: Mochi "Evening walk" at 18:00 (low), Luna "Feed breakfast" at 08:00 (high, daily), Mochi "Morning walk" at 07:30 (high). Leaving the description blank or the time empty shows an error instead.
+3. In **Schedule**, the table lists 07:30, 08:00, 18:00 in time order, even though they were added out of order.
+4. Add Mochi "Give bath" at 08:00. A warning appears: *Scheduling conflict (all pets, ...)* naming Luna's feeding and Mochi's bath. Choosing Pet = Mochi still shows the warning, because conflicts check all pets.
+5. Click **Complete: 08:00 Luna - Feed breakfast**. The row shows Done, and a success message gives the next due date (tomorrow).
+6. Change **Date** to tomorrow to see the new incomplete "Feed breakfast" occurrence.
 
-**Screenshot or video** *(optional)*: <!-- Insert a screenshot or link to a demo video here -->

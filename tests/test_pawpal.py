@@ -228,3 +228,27 @@ def test_unowned_equal_task_rejected_without_mutation():
     assert lookalike.completed is False
     assert owned.completed is False
     assert mochi.tasks == [owned]
+
+
+def test_empty_owner_scheduler_methods_return_empty():
+    sched = Scheduler(Owner("Jordan"))
+    assert sched.sort_by_time() == []
+    assert sched.filter_tasks() == []
+    assert sched.filter_tasks(pet_name="Mochi", completed=False) == []
+    assert sched.detect_conflicts() == []
+
+
+def test_pet_with_no_tasks_does_not_break_other_pets():
+    owner, mochi, luna, sched = setup()
+    feed = task("Luna", "Feed")
+    luna.add_task(feed)
+
+    assert sched.filter_tasks(pet_name="Mochi") == []
+    assert sched.sort_by_time() == [feed]
+    assert sched.detect_conflicts() == []
+
+
+def test_complete_task_with_no_pets_rejected():
+    sched = Scheduler(Owner("Jordan"))
+    with pytest.raises(ValueError):
+        sched.mark_task_complete(task())

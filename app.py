@@ -86,24 +86,72 @@ else:
             except ValueError as error:
                 st.error(str(error))
 
-# ------------------------------------------------------------ Task list
-st.subheader("All Tasks")
-all_tasks = owner.get_all_tasks()
-if all_tasks:
+# ------------------------------------------------------------- Schedule
+st.subheader("Schedule")
+st.caption(
+    "Tasks appear by date and time, with higher priority first when times match. "
+    "Conflicts only trigger a warning; tasks are never moved."
+)
+scheduler = st.session_state.scheduler
+
+col_date, col_pet, col_status = st.columns(3)
+with col_date:
+    view_date = st.date_input("Date", value=date.today(), key="view_date")
+with col_pet:
+    pet_filter = st.selectbox(
+        "Pet", ["All pets"] + [pet.name for pet in owner.pets], key="pet_filter"
+    )
+with col_status:
+    status_filter = st.selectbox(
+        "Status", ["All", "Incomplete", "Completed"], key="status_filter"
+    )
+
+# The message from the last completion survives the rerun that follows it.
+if "completion_message" in st.session_state:
+    st.success(st.session_state.completion_message)
+
+# Conflicts look at every pet on the selected date, ignoring the display filters.
+for warning in scheduler.detect_conflicts(scheduler.filter_tasks(due_date=view_date)):
+    st.warning(f"Scheduling conflict (all pets, {view_date}): {warning}")
+
+shown = scheduler.sort_by_time(
+    scheduler.filter_tasks(
+        pet_name=None if pet_filter == "All pets" else pet_filter,
+        completed={"All": None, "Incomplete": False, "Completed": True}[status_filter],
+        due_date=view_date,
+    )
+)
+
+if shown:
     st.table(
         [
             {
-                "Pet": task.pet_name,
-                "Date": task.due_date.isoformat(),
                 "Time": task.time,
+                "Pet": task.pet_name,
                 "Description": task.description,
                 "Duration (min)": task.duration_minutes,
                 "Priority": task.priority,
                 "Frequency": task.frequency,
                 "Status": "Done" if task.completed else "Pending",
             }
-            for task in all_tasks
+            for task in shown
         ]
     )
+    for task in shown:
+        if task.completed:
+            continue
+        # id(task) keeps keys unique even for identical-looking tasks.
+        label = f"Complete: {task.time} {task.pet_name} - {task.description}"
+        if st.button(label, key=f"complete_{id(task)}"):
+            try:
+                next_task = scheduler.mark_task_complete(task)
+            except ValueError as error:
+                st.error(str(error))
+            else:
+                message = f"Completed '{task.description}' for {task.pet_name}."
+                if next_task is not None:
+                    message += f" Next occurrence is due {next_task.due_date}."
+                st.session_state.completion_message = message
+                st.rerun()
 else:
-    st.info("No tasks yet. Add one above.")
+    st.info("No tasks match these filters for the selected date.")
