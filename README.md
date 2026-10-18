@@ -49,52 +49,75 @@ The backend lives in `pawpal_system.py` with four classes:
 - `Task` (dataclass): one care task; `mark_complete()` sets `completed` to `True`.
 - `Pet` (dataclass): a pet and its tasks; `add_task()` rejects a task whose `pet_name` doesn't match the pet.
 - `Owner` (dataclass): an owner and their pets; `add_pet()` rejects blank or duplicate names (case-insensitive, whitespace trimmed); `get_all_tasks()` returns a new list of every pet's tasks.
-- `Scheduler`: stores the `Owner`. Sorting, filtering, conflict detection, and recurring-task handling are still stubs for the algorithm phase.
+- `Scheduler`: stores the `Owner`; sorting, filtering, conflict detection, and recurring-task completion (see Smarter Scheduling).
 
 `main.py` is a command-line demo and `tests/test_pawpal.py` holds the pytest tests. `app.py` has not been connected yet.
 
 ## 🖥️ Sample Output
 
-From `python main.py` (tasks are listed in the order they were added; sorting comes in a later phase):
+From `python main.py` (tasks are added out of order across two pets; the demo then sorts, filters, checks conflicts, and completes a daily task):
 
 ```
 Today's Schedule for Jordan (2026-10-18)
-------------------------------------------------------------
-07:30 | Mochi  | Morning walk    | high   | pending
-18:00 | Mochi  | Brush fur       | low    | pending
-08:00 | Luna   | Feed breakfast  | high   | pending
+------------------------------------------------------------------
+2026-10-18 07:30 | Mochi  | Morning walk    | high   | pending
+2026-10-18 08:00 | Luna   | Feed breakfast  | high   | pending
+2026-10-18 08:00 | Luna   | Give medicine   | medium | pending
+2026-10-18 18:00 | Mochi  | Brush fur       | low    | pending
+
+Mochi's incomplete tasks
+------------------------------------------------------------------
+2026-10-18 07:30 | Mochi  | Morning walk    | high   | pending
+2026-10-18 18:00 | Mochi  | Brush fur       | low    | pending
+
+Conflict warnings
+------------------------------------------------------------------
+WARNING: Conflict on 2026-10-18 at 08:00: Luna: Feed breakfast, Luna: Give medicine
+
+Completing a daily task
+------------------------------------------------------------------
+Completed: Feed breakfast (2026-10-18)
+Next occurrence: Feed breakfast on 2026-10-19 at 08:00
 ```
 
 ## 🧪 Testing PawPal+
 
 ```bash
 # Run the full test suite:
-pytest
+python -m pytest
 
-# Run with coverage:
+# Run with coverage (requires pytest-cov, not in the current venv):
 pytest --cov
 ```
 
 Sample test output:
 
 ```
-collected 7 items
+collected 18 items
 
-tests\test_pawpal.py .......                                             [100%]
+tests/test_pawpal.py ..................                                  [100%]
 
-============================== 7 passed in 0.18s ==============================
+============================= 18 passed in 0.33s ==============================
 ```
+
+Coverage description (behaviors tested; a line-coverage percentage was not measured because `pytest-cov` is not installed):
+
+- Core models: task completion, adding tasks, `get_all_tasks`, duplicate/blank pet names, wrong-pet tasks.
+- Sorting: date/time/priority ordering, no mutation of input, explicitly empty list.
+- Filtering: combined pet + `completed=False` + date filters.
+- Recurrence: daily and weekly (including month/year rollover), no duplicate on repeated completion, no new task for one-time tasks, rejection of an equal-looking but unowned task.
+- Conflicts: across pets and within one pet; completed tasks, different dates, and duration-only overlaps are ignored.
 
 ## 📐 Smarter Scheduling
 
-> Fill in once you've implemented scheduling logic.
+All four methods live on `Scheduler` in `pawpal_system.py`.
 
-| Feature | Method(s) | Notes |
-|---------|-----------|-------|
-| Task sorting | | e.g., by priority, duration |
-| Filtering | | e.g., skip tasks if time runs out |
-| Conflict handling | | e.g., overlapping time slots |
-| Recurring tasks | | e.g., daily vs. weekly |
+| Feature | Method | Notes |
+|---------|--------|-------|
+| Task sorting | `sort_by_time(tasks=None)` | Returns a new list sorted by due date, `HH:MM` time, then priority (high, medium, low). Defaults to all of the owner's tasks; an explicit empty list returns `[]`. Input is never mutated. |
+| Filtering | `filter_tasks(pet_name=None, completed=None, due_date=None)` | Applies every supplied filter together. `completed=False` is a real filter (checked with `is not None`). |
+| Conflict handling | `detect_conflicts(tasks=None)` | Groups incomplete tasks by `(due_date, time)` and returns one warning per group with 2+ tasks, naming each pet and description. Works across and within pets. Only exact start-time matches count; duration overlaps are ignored. |
+| Recurring tasks | `mark_task_complete(task)` | Verifies the exact task object is owned (identity, not equality) or raises `ValueError`. Already-completed returns `None`. Once-tasks return `None`; daily/weekly tasks add and return a fresh incomplete copy due 1 or 7 days later. |
 
 ## 📸 Demo Walkthrough
 

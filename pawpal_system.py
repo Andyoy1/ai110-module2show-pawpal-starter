@@ -1,8 +1,11 @@
 """PawPal+ backend class skeletons (Phase 1: attributes and signatures only)."""
 
-from dataclasses import dataclass, field
-from datetime import date
+from dataclasses import dataclass, field, replace
+from datetime import date, timedelta
 from typing import List, Optional
+
+PRIORITY_ORDER = {"high": 0, "medium": 1, "low": 2}
+RECURRENCE_DAYS = {"daily": 1, "weekly": 7}
 
 
 @dataclass
@@ -74,7 +77,16 @@ class Scheduler:
 
     def sort_by_time(self, tasks: Optional[List[Task]] = None) -> List[Task]:
         """Sort tasks by date and time, using priority to break ties."""
-        pass
+        if tasks is None:
+            tasks = self.owner.get_all_tasks()
+        return sorted(
+            tasks,
+            key=lambda t: (
+                t.due_date,
+                t.time,
+                PRIORITY_ORDER.get(t.priority, len(PRIORITY_ORDER)),
+            ),
+        )
 
     def filter_tasks(
         self,
@@ -83,12 +95,50 @@ class Scheduler:
         due_date: Optional[date] = None,
     ) -> List[Task]:
         """Return tasks matching the given pet, completion status, and date."""
-        pass
+        matches = []
+        for task in self.owner.get_all_tasks():
+            if pet_name is not None and task.pet_name != pet_name:
+                continue
+            if completed is not None and task.completed != completed:
+                continue
+            if due_date is not None and task.due_date != due_date:
+                continue
+            matches.append(task)
+        return matches
 
     def detect_conflicts(self, tasks: Optional[List[Task]] = None) -> List[str]:
         """Return warnings for incomplete tasks sharing the same date and time."""
-        pass
+        if tasks is None:
+            tasks = self.owner.get_all_tasks()
+        groups = {}
+        for task in tasks:
+            if not task.completed:
+                groups.setdefault((task.due_date, task.time), []).append(task)
+
+        warnings = []
+        for (due, time), group in sorted(groups.items()):
+            if len(group) > 1:
+                details = ", ".join(f"{t.pet_name}: {t.description}" for t in group)
+                warnings.append(f"Conflict on {due} at {time}: {details}")
+        return warnings
 
     def mark_task_complete(self, task: Task) -> Optional[Task]:
         """Complete a task; if recurring, add and return the next occurrence."""
-        pass
+        # Identity, not equality: an equal-looking Task must not match.
+        owning_pet = next(
+            (p for p in self.owner.pets if any(t is task for t in p.tasks)), None
+        )
+        if owning_pet is None:
+            raise ValueError("Task does not belong to this owner.")
+        if task.completed:
+            return None
+
+        task.mark_complete()
+        days = RECURRENCE_DAYS.get(task.frequency)
+        if days is None:
+            return None
+        next_task = replace(
+            task, due_date=task.due_date + timedelta(days=days), completed=False
+        )
+        owning_pet.add_task(next_task)
+        return next_task
